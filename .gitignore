@@ -1,0 +1,9 @@
+*.swp
+*.log
+*.aux
+*.make
+*.bbl
+*.blg
+*.d
+*.fls
+emnlp2015.pdf
