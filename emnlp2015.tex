@@ -328,11 +328,13 @@ and models that combined KB embeddings with dependency path features (WESTON).
   \centering
   \begin{tikzpicture}
     \begin{axis}[xlabel=Recall, ylabel=Precision, no markers,width=\columnwidth]
-      \addplot table [y=Precision, x=Recall]{data/hoffmann.tsv};
+      \addplot[black] table [y=Precision, x=Recall]{data/hoffmann_frequent};
       \addlegendentry{Hoffmann}
-      \addplot table [y=Precision, x=Recall]{data/weston.tsv};
+      \addplot[blue] table [y=Precision, x=Recall]{data/weston.tsv};
       \addlegendentry{Weston}
-      \addplot table [y=Precision, x=Recall]{data/pra_per_mention.tsv};
+      \addplot[cyan] table [y=Precision, x=Recall]{data/miml.tsv};
+      \addlegendentry{MIML}
+      \addplot[red] table [y=Precision, x=Recall]{data/pra_frequent.tsv};
       \addlegendentry{Ours}
     \end{axis}
   \end{tikzpicture}
@@ -355,7 +357,16 @@ dependency features.
 
 \begin{figure}
   \centering
-  \includegraphics[width=8cm,height=6cm]{senPR.png}
+  \begin{tikzpicture}
+    \begin{axis}[xlabel=Recall, ylabel=Precision, no markers,width=\columnwidth, legend style={at={(0.03,0.2)},anchor=west}, xmax=0.25,xmin=0]
+      \addplot[green] table [y=Precision, x=Recall]{data/senPR_withpra};
+      \addlegendentry{With Test mentions}
+      \addplot[red] table [y=Precision, x=Recall]{data/senPR_withouttestmention};
+      \addlegendentry{Without Test Mention}
+      \addplot[blue] table [y=Precision, x=Recall]{data/senPR_baseline};
+      \addlegendentry{Hoffmann}
+    \end{axis}
+  \end{tikzpicture}
   \caption{Sentential extraction performance of our method compared with
   MultiR.}
   \label{fig:sentential-comparison}
