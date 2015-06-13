@@ -303,11 +303,11 @@ and not from interactions between PRA and dependency path features.
   \centering
   \begin{tikzpicture}
     \begin{axis}[xlabel=Recall, ylabel=Precision, no markers,width=\columnwidth]
-      \addplot table [y=Precision, x=Recall]{data/pra_per_mention.tsv};
+      \addplot table [y=Precision, x=Recall]{data/pra_frequent.tsv};
       \addlegendentry{PRA Per Mention}
-      \addplot table [y=Precision, x=Recall]{data/pra_per_entity.tsv};
+      \addplot table [y=Precision, x=Recall]{data/pra_per_entity_frequent.tsv};
       \addlegendentry{PRA Per Entity}
-      \addplot [mark=none, green] table [y=Precision, x=Recall]{data/pra_only.tsv};
+      \addplot [mark=none, green] table [y=Precision, x=Recall]{data/pra_only_frequent.tsv};
       \addlegendentry{PRA Only}
     \end{axis}
   \end{tikzpicture}
