@@ -44,10 +44,10 @@ into Relation Extraction Models}
   parsers, and as databases backing question answering systems, but there has
   been very little work that makes use of these KBs for lower-level natural
   language processing tasks.  We present a simple technique for incorporating
-  features from a KB into any graphical model that contains a pairwise factor
-  between KB entities.  We apply this idea to a relation extraction model,
-  showing striking improvements over prior relation extraction techniques, both
-  those that use distant supervision and those that use KB embeddings.
+  features from a KB into any graphical model that contains factors involving
+  KB entities.  We apply this idea to a relation extraction model, showing
+  striking improvements over prior relation extraction techniques, both those
+  that use distant supervision and those that use KB embeddings.
 
 \end{abstract}
 
@@ -75,18 +75,17 @@ question into an executable query over a structured knowledge base, it is less
 clear how to tractably incorporate a knowledge base into a model for parsing or
 part-of-speech tagging.  In this work, we take a step in that direction by
 presenting a general technique for incorporating features generated from a
-knowledge base into \emph{any} graphical model that contains a pairwise factor
-between KB entities.
+knowledge base into \emph{any} graphical model that contains factors involving
+KB entities.
 
 Our method is inspired by the Path Ranking Algorithm~\cite[PRA]{lao-2010-pra},
 a method for constructing feature matrices over node pairs in a graph.  Almost
 all prior work with PRA has used the constructed feature matrix to perform link
-prediction in the graph; when the graph corresponds to a knowledge base, this
-is the task of knowledge base completion, and most work with PRA has focused
-exclusively on this task~\cite{lao-2011-pra2,lao-2012-syntactic-pra,%
+prediction; when the graph corresponds to a knowledge base, this is the task of
+knowledge base completion~\cite{lao-2011-pra2,lao-2012-syntactic-pra,%
 dong-2014-knowledge-vault,gardner-2013-latent-pra,gardner-2014-vector-space-pra}.
 However, the feature matrices constructed by PRA need not be used only in a
-logistic regression classifier; they can be included as factors in arbitrary
+classifier for link prediction; they can be included as factors in arbitrary
 graphical models.
 
 As an initial proof-of-concept of this idea, we add a PRA feature matrix as a
@@ -108,13 +107,16 @@ PRA-augmented MultiR model with various techniques from prior work, showing
 that our method substantially outperforms prior techniques in both aggregate
 and sentential relation extraction.
 
-\section{The Path Ranking Algorithm}
+\section{Related Work}
 
-The path ranking algorithm was introduced by Lao and Cohen in 2010.  It is a
-two-step process for generating a feature matrix over node pairs in a graph.
-The first step finds a set of potentially useful path types that connect the
-node pairs, which become the columns of the feature matrix.  A \emph{path type}
-\pathtype{} is a sequence of edge types in the graph, such as
+\subsection{The Path Ranking Algorithm}
+
+The path ranking algorithm was introduced by Lao and
+Cohen~\shortcite{lao-2010-pra}.  It is a two-step process for generating a
+feature matrix over node pairs in a graph.  The first step finds a set of
+potentially useful path types that connect the node pairs, which become the
+columns of the feature matrix.  A \emph{path type} \pathtype{} is a sequence of
+edge types in the graph, such as
 -\relation{CityInState}-\relation{StateInCountry}- (this particular path type
 would be highly predictive of instances of \relation{CityInCountry}).  These
 path types are found by performing a search over the graph, looking for path
@@ -131,35 +133,31 @@ at the target node of the entity pair: $p(t|s,\pathtype)$.  These probabilities
 can be computed with a breadth-first search, with matrix multiplications, or by
 using random walks to perform rejection sampling.
 
-After this two-step process has computed a feature matrix, typical uses of PRA
-then learn a logistic regression classifier to score new entity pairs and
-perform knowledge base completion.  In this work, however, we inject the
-feature matrix into a more complex graphical model, the MultiR model for
-performing relation extraction, described in the next section.  Additionally,
-because the second step of PRA is very computationally expensive, and some
-experimentation showed that using binary features performs just as well, we
-only use the first step of PRA to compute a binary feature matrix.
+The PRA feature matrix is typically used for KB completion by training a a
+logistic regression classifier to score new entity pairs.  In this work,
+however, we inject the feature matrix into a more complex graphical model, the
+MultiR model for performing relation extraction, described in the next section.
 
-\section{MultiR}
+\subsection{MultiR}
 
 The MultiR algorithm~\cite{hoffmann-2011-distant-supervision} is a
 probabilistic graphical model for performing relation extraction with distant
-supervision.  The model is \emph{distantly supervised} because while it makes
-predictions on individual sentences, it has no annotated sentences as training
-data.  Instead, it obtains supervision by aligning entity pairs seen in a
-knowledge base with entity pairs seen in sentences, and assumes that at least
-one of the sentences for a particular entity pair expresses the relationship
-seen in the KB.  The model also allows for more than one relationship to exist
-between a pair of entities, to account for the fact, e.g., that a person might
-be born in a nation, have citizenship there, and be president of that nation,
-all of which are typically separate relations in a KB.  The model is shown in
-\figref{multir}, where $S$ is the set of sentences between any two entities
-$e_1$, $e_2$ $\in$ E and $Z_i$'s are the latent variables that range over all
-relation names and a distinct value None. The model outputs a binary relation
-vector Y, with indicator bits for each relation.  It is trained using an online
-perceptron-style algorithm.
+supervision.  The model, shown in \figref{multir}, is \emph{distantly
+supervised} because, while it makes predictions on individual sentences, it has
+no annotated sentences as training data.  Instead, it obtains supervision by
+aligning entity pairs seen in a knowledge base with entity pairs seen in
+sentences, and assumes that at least one of the sentences for a particular
+entity pair expresses the relationship seen in the KB.  The model also allows
+for more than one relationship to exist between a pair of entities, to account
+for the fact, e.g., that a person might be born in a nation, have citizenship
+there, and be president of that nation, all of which are typically separate
+relations in a KB.  The model is shown in \figref{multir}, where $S$ is the set
+of sentences between any two entities $e_1$, $e_2$ $\in$ E and $Z_i$'s are the
+latent variables that range over all relation names and a distinct value None.
+The model outputs a binary relation vector Y, with indicator bits for each
+relation.  It is trained using an online perceptron-style algorithm.
 
-\section{Other Related Work}
+\subsection{Other Related Work}
 \label{sec:related-work}
 
 We briefly mention here a few other pieces of related work, particularly those
@@ -279,20 +277,20 @@ extraction performance in aggregate (comparing predicted $Y$ values to truth
 from the KB), and at the sentence level (comparing predicted $Z_i$ values to
 human-annotated $Z_i$ values in the test set).
 
-To extract PRA features, we used somewhat outdated dump of the Freebase graph,
-excluding some of the largest relations (including those that are not really
-relevant to the relations in the dataset we used, such as relations under
-\relation{/user} and \relation{/common}, and relations dealing with things like
-individual music tracks and TV episodes).  We removed any direct edges between
-entity pairs in the training and test data, then ran the first step of PRA to
-produce a binary feature matrix.  We then added this matrix as a factor to the
-MultiR model as described in \secref{pra-augmented-multir}.  We found that
-because this new factor increased the size of the feature space, additional
-regularization was needed.  We added an L2 regularization parameter to the
-model, which we tuned using 5-fold cross validation on the training data.  This
-significantly improved the performance of our augmented model, though a similar
-addition to MultiR did not improve performance, so we did not include it in our
-final experiments.
+To extract PRA features, we used a dump of the Freebase graph, excluding some
+of the largest relations (including those that are not really relevant to the
+relations in the dataset we used, such as relations under \relation{/user} and
+\relation{/common}, and relations dealing with things like individual music
+tracks and TV episodes).  We removed any direct edges between entity pairs in
+the training and test data, then ran the first step of PRA to produce a binary
+feature matrix.  We then added this matrix as a factor to the MultiR model as
+described in \secref{pra-augmented-multir}.  We found that because this new
+factor increased the size of the feature space, additional regularization was
+needed.  We added an L2 regularization parameter to the model, which we tuned
+using 5-fold cross validation on the training data.  This significantly
+improved the performance of our augmented model, though a similar addition to
+MultiR did not improve performance, so we did not include it in our final
+experiments.
 
 We first present a comparison of aggregate extraction performance between the
 ways of augmenting MultiR with PRA features.  \figref{our-comparison} shows the
@@ -323,6 +321,12 @@ augmented model and prior work on aggregate extraction performance.  As can be
 seen from the figure, our method substantially outperforms all prior work,
 including models that just used dependency path features (MultiR and MIML-RE)
 and models that combined KB embeddings with dependency path features (WESTON).
+It appears that the embedding method vastly under-utilizes the knowledge base,
+as the same information is available to both Weston's method and ours.  We
+belive this is because much of the information contained in the knowledge base
+is not amenable to low-rank representations~\cite{nickel-2014-are}, and so our
+method that incorporates symbolic information from the KB can get much more
+leverage from that information.
 
 \begin{figure}
   \centering
@@ -358,7 +362,15 @@ dependency features.
 \begin{figure}
   \centering
   \begin{tikzpicture}
-    \begin{axis}[xlabel=Recall, ylabel=Precision, no markers,width=\columnwidth, legend style={at={(0.03,0.2)},anchor=west}, xmax=0.25,xmin=0]
+    \begin{axis}[
+        xlabel=Recall,
+        ylabel=Precision,
+        no markers,
+        width=\columnwidth,
+        legend style={at={(0.03,0.2)},anchor=west},
+        xmax=0.25,
+        xmin=0
+      ]
       \addplot[green] table [y=Precision, x=Recall]{data/senPR_withpra};
       \addlegendentry{With Test mentions}
       \addplot[red] table [y=Precision, x=Recall]{data/senPR_withouttestmention};
