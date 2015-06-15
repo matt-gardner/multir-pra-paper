@@ -70,13 +70,13 @@ and forming the foundation of question answering systems such as Google's
 search and Apple's Siri.
 
 One place where these knowledge bases have not typically found use is in
-lower-level natural language models.  While it is now understood how to parse a
-question into an executable query over a structured knowledge base, it is less
-clear how to tractably incorporate a knowledge base into a model for parsing or
-part-of-speech tagging.  In this work, we take a step in that direction by
-presenting a general technique for incorporating features generated from a
-knowledge base into \emph{any} graphical model that contains factors involving
-KB entities.
+lower-level natural language models.  While it is now fairly well understood
+how to parse a question into an executable query over a structured knowledge
+base, it is less clear how to tractably incorporate a knowledge base into a
+model for parsing or part-of-speech tagging.  In this work, we take a step in
+that direction by presenting a general technique for incorporating features
+generated from a knowledge base into \emph{any} graphical model that contains
+factors involving KB entities.
 
 Our method is inspired by the Path Ranking Algorithm~\cite[PRA]{lao-2010-pra},
 a method for constructing feature matrices over node pairs in a graph.  Almost
@@ -99,8 +99,8 @@ that still allows for efficient inference, are much more challenging (e.g.,
 something like ConceptNet~\cite{conceptnet-2004} could be used, though its
 coverage may be questionable).  However, the gains we achieve by adding PRA
 features into the MultiR model are quite substantial, and we believe they
-provide sufficient motivation to solve the challenges of incorporating these
-same ideas into more low-level NLP models.
+provide sufficient motivation to explore incorporating these same ideas into
+more low-level NLP models.
 
 In the remainder of this paper, we first briefly describe the PRA and MultiR
 models, as well as other related work, then we describe how we incorporate PRA
@@ -115,27 +115,25 @@ and sentential relation extraction.
 
 The path ranking algorithm was introduced by Lao and
 Cohen~\shortcite{lao-2010-pra}.  It is a two-step process for generating a
-feature matrix over node pairs in a graph.  The first step finds a set of
-potentially useful path types that connect the node pairs, which become the
-columns of the feature matrix.  A \emph{path type} \pathtype{} is a sequence of
-edge types in the graph, such as
--\relation{CityInState}-\relation{StateInCountry}- (this particular path type
-would be highly predictive of instances of \relation{CityInCountry}).  These
-path types are found by performing a search over the graph, looking for path
-types that commonly connect the source and target nodes of the training
-instances for a particular relation.  Once selected, each path type becomes a
-column in the constructed feature matrix (where rows correspond to entity
-pairs).
+feature matrix over node pairs in a graph with labeled edges.  The first step
+finds a set of potentially useful path types that connect the node pairs, which
+become the columns of the feature matrix.  A \emph{path type} \pathtype{} is a
+sequence of edge types in the graph, such as
+-\relation{CityInState}-\relation{StateInCountry}-.  These path types are found
+by performing a search over the graph, looking for path types that commonly
+connect the source and target nodes of the training instances for a particular
+relation.  Once selected, each path type becomes a column in the constructed
+feature matrix (where rows correspond to entity pairs).
 
 Once a set of path types has been found, the second step of PRA then computes
-the values in the feature matrix.  The value for a particular cell in the
-matrix is the probability of starting at the source node of an entity pair,
-following the path type corresponding to the column of the matrix, and arriving
-at the target node of the entity pair: $p(t|s,\pathtype)$.  These probabilities
-can be computed with a breadth-first search, with matrix multiplications, or by
-using random walks to perform rejection sampling.
+the values in the feature matrix.  The value of the cell at row (entity pair)
+$i$ and column (path type) $j$ is the probability that a random walk beginning
+at the first entity in pair $i$, and following a path of type $j$, will end at
+the second entity in pair $i$: $p(i_2|i_1,j)$.  These probabilities can be
+computed with a breadth-first search, with matrix multiplications, or by using
+random walks to perform rejection sampling.
 
-The PRA feature matrix is typically used for KB completion by training a a
+The PRA feature matrix is typically used for KB completion by training a
 logistic regression classifier to score new entity pairs.  In this work,
 however, we inject the feature matrix into a more complex graphical model, the
 MultiR model for performing relation extraction, described in the next section.
@@ -148,7 +146,7 @@ supervision.  The model, shown in \figref{multir}, is \emph{distantly
 supervised} because, while it makes predictions on individual sentences, it has
 no annotated sentences as training data.  The input to MultiR is a KB and a set
 of sentences that each mention a pair of KB entities.  The model assumes that
-at least one of the entity pairs expresses the relationships seen between the
+at least one of the sentences expresses each relationship seen between the
 entity pair in the KB, and learns a model to predict which sentences express
 which relations.  In the model description in \figref{multir}, $S$ is the set
 of sentences between any two entities $e_1$, $e_2$ $\in$ E and $Z_i$'s are the
@@ -167,9 +165,10 @@ very similar to the MultiR algorithm, but relaxes some of the hard constraints
 used by MultiR.  Weston et
 al.~\shortcite{weston-2013-connecting-language-and-kb} is the work that is most
 similar to ours, in that they also attempted to add information from a
-knowledge base to a relation extraction model.  They used neural embeddings,
-however, instead of the factor-based approach that we take in this paper, so
-their technique is not as widely applicable as ours.
+knowledge base to a relation extraction model.  They used an ensemble with
+neural embeddings, however, instead of the factor-based approach that we take
+in this paper, so their technique cannot be applied to arbitrary graphical
+models, as ours can.
 
 Additionally, Nakashole and Mitchell~\shortcite{nakashole-2015-pp-attachment}
 show a method for incorporating background knowledge into predicting
@@ -185,19 +184,19 @@ There are two options for adding a PRA factor into the MultiR model.  The first
 (and more natural) place to add the factor is once per entity pair, as an
 additional component to the factor connecting the $Y$ and $Z_i$ variables.
 This is shown in \figref{per-entity-pair}.  The issue with this placement is
-that the factor connecting $Y$ and $Z_i$ is a determinstic OR, and the model is
-trained using an at-least-once assumption; this means that if the model can
+that the factor connecting $Y$ and $Z_i$ is a deterministic OR, and the model
+is trained using an at-least-once assumption; this means that if the model can
 explain the existence of a relationship between an entity pair with the PRA
 factor, it will tend to not learn from the sentences for that entity pair.
 
 An alternate placement is to include the PRA features as an additional
 component of every mention of the entity pair, shown in \figref{per-mention}.
 One way this can be thought of is as a stronger kind of supervision; the
-stronger an entity exhibits a particular relationship, as determined by the PRA
-features, the more likely the dependency parse features of the MultiR model are
-to be upweighted for that sentence.  When judging aggregate performance, this
-also gives the model access to a much richer set of features than just those
-expressed in the corpus.
+stronger an entity pair exhibits a particular relationship, as determined by
+the PRA features, the more likely the dependency parse features of the MultiR
+model are to be up-weighted for that sentence.  When judging aggregate
+performance, this also gives the model access to a much richer set of features
+than just those expressed in the corpus.
 
 \begin{figure}[t!]
   \centering
@@ -267,7 +266,11 @@ expressed in the corpus.
     \caption{Per Mention}
     \label{fig:per-mention}
   \end{subfigure}
-  \caption{Plate notation of the model}
+  \caption{Plate notation of the MultiR model and our modifications of it.  $R$
+  is the number of relations in the KB, $E$ is the number of entities, and each
+  $Y$ variable encodes whether an entity pair expresses relation $R$.  There is
+  one $Z$ variable per sentence, encoding which relation is expressed by that
+  sentence.}
 \end{figure}
 
 
@@ -308,23 +311,24 @@ features in the model (i.e., assuming that there are no sentence mentions for
 any entity pair).  ``Interpolated'' is the result of a weighted
 interpolation between ``PRA Only'' and MultiR, showing that joint training
 between the PRA features and MultiR's dependency path features is crucial, as
-the interpolated result is quite poor.  TODO: actually add the interpolated
-result to the figure.
+the interpolated result is quite poor.
 
 \begin{figure}
   \centering
   \begin{tikzpicture}
     \begin{axis}[xlabel=Recall, ylabel=Precision, no markers,width=\columnwidth]
-      \addplot table [y=Precision, x=Recall]{data/pra_frequent.tsv};
+      \addplot[red] table [y=Precision, x=Recall]{data/pra_frequent.tsv};
       \addlegendentry{PRA Per Mention}
-      \addplot table [y=Precision, x=Recall]{data/pra_per_entity_frequent.tsv};
+      \addplot[blue] table [y=Precision, x=Recall]{data/pra_per_entity_frequent.tsv};
       \addlegendentry{PRA Per Entity}
-      \addplot [mark=none, green] table [y=Precision, x=Recall]{data/pra_only_frequent.tsv};
+      \addplot[mark=none, green] table [y=Precision, x=Recall]{data/pra_only_frequent.tsv};
       \addlegendentry{PRA Only}
+      \addplot[mark=none, cyan] table [y=Precision, x=Recall]{data/interpolated.tsv};
+      \addlegendentry{Interpolated}
     \end{axis}
   \end{tikzpicture}
   \caption{Aggregate extraction performance of the augmented MultiR methods
-  introduced in this paper.}
+  introduced in this paper, along with two baselines.}
   \label{fig:our-comparison}
 \end{figure}
 
@@ -335,7 +339,7 @@ method substantially outperforms all prior work, including models that just
 used dependency path features (MultiR and MIML-RE) and models that combined KB
 embeddings with dependency path features (Weston).  It appears that the
 embedding method vastly under-utilizes the knowledge base, as the same
-information is available to both Weston's method and ours.  We belive this is
+information is available to both Weston's method and ours.  We believe this is
 because much of the information contained in the knowledge base is not amenable
 to low-rank representations~\cite{nickel-2014-are}, and so our method that
 incorporates symbolic information from the KB can get much more leverage from
@@ -355,7 +359,7 @@ the KB.
       \addplot[cyan] table [y=Precision, x=Recall]{data/miml.tsv};
       \addlegendentry{MIML-RE}
       \addplot[red] table [y=Precision, x=Recall]{data/pra_frequent.tsv};
-      \addlegendentry{Ours}
+      \addlegendentry{PRA Per Mention}
     \end{axis}
   \end{tikzpicture}
   \caption{Aggregate extraction performance of our method compared with several
@@ -367,14 +371,15 @@ Lastly, we present a comparison of sentential extraction performance between
 MultiR and our augmented version.  We note here that the PRA features we added
 are aggregate-level features, not sentence-level features.  A relation may be
 true in aggregate but not expressed by a particular sentence, and so it is
-possible that the PRA features could mislead the model when predicting at the
-sentence level.  Because the PRA features could be misleading at test time, we
-also experimented with only using the PRA features at training time, removing
-them during testing.  \figref{sentential-comparison} shows the results of this
-comparison.  PRA-augmented MultiR performs slightly worse than MultiR, while,
-somewhat surprisingly, using PRA features only at training time performs
-slightly better.  We believe this improvement is because the presence of the
-PRA features at training time gives the model a stronger and better supervision
+possible that the PRA features could mislead the model when trying to infer
+whether that relation is expressed by a specific sentence.  Because the PRA
+features could be misleading at test time, we also experimented with only using
+the PRA features at training time, removing them during testing.
+\figref{sentential-comparison} shows the results of this comparison.
+PRA-augmented MultiR performs slightly worse than MultiR, while, somewhat
+surprisingly, using PRA features only at training time performs slightly
+better.  We believe this improvement is because the presence of the PRA
+features at training time gives the model a stronger and better supervision
 signal, nudging the model to learn more from entity pairs that are strongly
 associated with a relation than from those that are not, resulting in better
 learned weights for the dependency features.
