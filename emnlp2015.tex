@@ -95,10 +95,12 @@ We chose this model for our initial experiment because the choice of KB is
 obvious (as they use a KB to obtain distantly-supervised training examples),
 and deciding how to incorporate a PRA factor is not difficult.  In contrast,
 finding a suitable KB for a parsing model, as well as adding a factor in a way
-that still allows for efficient inference, are much more challenging.  However,
-the gains we achieve by adding PRA features into the MultiR model are quite
-substantial, and we believe they provide sufficient motivation to solve the
-challenges of incorporating these same ideas into more low-level NLP models.
+that still allows for efficient inference, are much more challenging (e.g.,
+something like ConceptNet~\cite{conceptnet-2004} could be used, though its
+coverage may be questionable).  However, the gains we achieve by adding PRA
+features into the MultiR model are quite substantial, and we believe they
+provide sufficient motivation to solve the challenges of incorporating these
+same ideas into more low-level NLP models.
 
 In the remainder of this paper, we first briefly describe the PRA and MultiR
 models, as well as other related work, then we describe how we incorporate PRA
@@ -144,18 +146,16 @@ The MultiR algorithm~\cite{hoffmann-2011-distant-supervision} is a
 probabilistic graphical model for performing relation extraction with distant
 supervision.  The model, shown in \figref{multir}, is \emph{distantly
 supervised} because, while it makes predictions on individual sentences, it has
-no annotated sentences as training data.  Instead, it obtains supervision by
-aligning entity pairs seen in a knowledge base with entity pairs seen in
-sentences, and assumes that at least one of the sentences for a particular
-entity pair expresses the relationship seen in the KB.  The model also allows
-for more than one relationship to exist between a pair of entities, to account
-for the fact, e.g., that a person might be born in a nation, have citizenship
-there, and be president of that nation, all of which are typically separate
-relations in a KB.  The model is shown in \figref{multir}, where $S$ is the set
+no annotated sentences as training data.  The input to MultiR is a KB and a set
+of sentences that each mention a pair of KB entities.  The model assumes that
+at least one of the entity pairs expresses the relationships seen between the
+entity pair in the KB, and learns a model to predict which sentences express
+which relations.  In the model description in \figref{multir}, $S$ is the set
 of sentences between any two entities $e_1$, $e_2$ $\in$ E and $Z_i$'s are the
-latent variables that range over all relation names and a distinct value None.
-The model outputs a binary relation vector Y, with indicator bits for each
-relation.  It is trained using an online perceptron-style algorithm.
+latent variables that range over all relation names and a distinct value
+\relation{None}.  The model outputs a binary relation vector Y, with indicator
+bits for each relation.  It is trained using an online perceptron-style
+algorithm.
 
 \subsection{Other Related Work}
 \label{sec:related-work}
@@ -170,6 +170,13 @@ similar to ours, in that they also attempted to add information from a
 knowledge base to a relation extraction model.  They used neural embeddings,
 however, instead of the factor-based approach that we take in this paper, so
 their technique is not as widely applicable as ours.
+
+Additionally, Nakashole and Mitchell~\shortcite{nakashole-2015-pp-attachment}
+show a method for incorporating background knowledge into predicting
+prepositional phrase attachment.  Their work provides additional motivation
+for this line of research, and we believe that the addition of a PRA-style
+feature matrix from a suitable KB such as ConceptNet~\cite{conceptnet-2004}
+would further improve their results.
 
 \section{PRA-Augmented MultiR}
 \label{sec:pra-augmented-multir}
@@ -194,7 +201,8 @@ expressed in the corpus.
 
 \begin{figure}[t!]
   \centering
-  \begin{subfigure}[t]{2.0cm}
+  \begin{subfigure}[t]{1.7cm}
+    \centering
     \begin{tikzpicture}
        \node[latent]          (y)   {$Y$};
        \node[latent, below=2cm of y]            (zi) {$Z_i$} ;
@@ -208,19 +216,22 @@ expressed in the corpus.
         } {$S$} ; %
       \plate {ee} {
           (r)(s)
-        } {$EXE$} ; %
+        } {$E \times E$} ; %
     \end{tikzpicture}
     \caption{MultiR}
     \label{fig:multir}
   \end{subfigure}
   ~
-  \begin{subfigure}[t]{2.0cm}
+  \begin{subfigure}[t]{2.3cm}
+    \centering
     \begin{tikzpicture}
        \node[latent]          (y)   {$Y$};
        \node[latent, below=2cm of y]            (zi) {$Z_i$} ;
        \factor[below=1.2cm of y] {y-f} {} {y} {zi} ;
+       \node[latent, right=0.3cm of y-f]   (z-pra) {$Z_{pra}$} ;
+       \factoredge {z-pra} {y-f} {} ;
        \factor[right=0.3cm of zi] {zi-f} {$f_{s}$} {zi} {} ;
-       \factor[right=of y-f] {zi-fpra} {$f_{pra}$} {y-f} {} ;
+       \factor[above=of z-pra] {zi-fpra} {$f_{pra}$} {z-pra} {} ;
         \plate {r} {
           (y)
         } {$R$} ; %
@@ -228,14 +239,15 @@ expressed in the corpus.
           (zi)(zi-f)
         } {$S$} ; %
       \plate {ee} {
-          (r)(s)
-        } {$EXE$} ; %
+          (r)(s)(z-pra)(zi-fpra)
+        } {$E \times E$} ; %
     \end{tikzpicture}
     \caption{Per Entity-pair}
     \label{fig:per-entity-pair}
   \end{subfigure}
   ~
   \begin{subfigure}[t]{2.0cm}
+    \centering
     \begin{tikzpicture}
        \node[latent]          (y)   {$Y$};
        \node[latent, below=2cm of y]            (zi) {$Z_i$} ;
@@ -250,7 +262,7 @@ expressed in the corpus.
         } {$S$} ; %
       \plate {ee} {
           (r)(s)
-        } {$EXE$} ; %
+        } {$E \times E$} ; %
     \end{tikzpicture}
     \caption{Per Mention}
     \label{fig:per-mention}
@@ -263,41 +275,41 @@ expressed in the corpus.
 
 To evaluate the performance of this model, we use the dataset developed by
 Riedel et al.~\shortcite{riedel-2010-distant-supervision}, which aligns
-Freebase relations with a New York Times corpus.  The dataset contains a number
-of sentence mentions for each entity pair. The entities are extracted from
-sentences by Stanford Named Entity Tagger~\cite{finkel-2005-non-local-ie},
-spanning across 52 freebase relations.  The sentence level features include the
-part of speech tags, named entities and dependency tree paths.  Many systems
-have evaluated their performance on this dataset, including MultiR and the two
-systems mentioned in \secref{related-work}, MIML-RE and Weston's embedding
-method, allowing us to easily compare performance with those methods.  The
-evaluation protocol sorts all predictions for all relations by confidence and
-computes a precision-recall curve over those predictions.  We evaluate
-extraction performance in aggregate (comparing predicted $Y$ values to truth
-from the KB), and at the sentence level (comparing predicted $Z_i$ values to
-human-annotated $Z_i$ values in the test set).
+Freebase relations with the New York Times corpus.  The dataset contains a
+number of sentence mentions for each entity pair. The entities are extracted
+from sentences by Stanford Named Entity Tagger~\cite{finkel-2005-non-local-ie},
+and they participate in 52 separate relations from Freebase.  The sentence
+level features include the part of speech tags, named entities and dependency
+tree paths.  The evaluation protocol sorts all predictions for all relations by
+confidence and computes a precision-recall curve over those predictions.  We
+evaluate extraction performance in aggregate (comparing predicted $Y$ values to
+truth from the KB), and at the sentence level (comparing predicted $Z_i$ values
+to human-annotated $Z_i$ values in the test set).
 
-To extract PRA features, we used a dump of the Freebase graph, excluding some
-of the largest relations (including those that are not really relevant to the
-relations in the dataset we used, such as relations under \relation{/user} and
-\relation{/common}, and relations dealing with things like individual music
-tracks and TV episodes).  We removed any direct edges between entity pairs in
-the training and test data, then ran the first step of PRA to produce a binary
-feature matrix.  We then added this matrix as a factor to the MultiR model as
-described in \secref{pra-augmented-multir}.  We found that because this new
-factor increased the size of the feature space, additional regularization was
-needed.  We added an L2 regularization parameter to the model, which we tuned
-using 5-fold cross validation on the training data.  This significantly
-improved the performance of our augmented model, though a similar addition to
-MultiR did not improve performance, so we did not include it in our final
-experiments.
+To extract PRA features, we used a dump of the Freebase graph, excluding
+relations that were not relevant to our prediction task, such as the relations
+under \relation{/user} and \relation{/common}, and relations dealing with
+things like individual music tracks and TV episodes).  We removed any direct
+edges between entity pairs in the training and test data, then ran the first
+step of PRA to produce a binary feature matrix.  We then added this matrix as a
+factor to the MultiR model in the two ways described in
+\secref{pra-augmented-multir}.  We found that because this new factor increased
+the size of the feature space, additional regularization was needed.  We added
+an L2 regularization parameter to the model, which we tuned using 5-fold cross
+validation on the training data.  This significantly improved the performance
+of our augmented model, though a similar addition to MultiR did not improve
+performance, so we did not include it in our final experiments.
 
 We first present a comparison of aggregate extraction performance between the
 ways of augmenting MultiR with PRA features.  \figref{our-comparison} shows the
-results of the two different augmentations, along with a baseline of using just
-the PRA feature as a single entity pair mention, so we can get some sense of
-how much of the gain from our methods comes from the PRA features themselves,
-and not from interactions between PRA and dependency path features.
+results of the two different augmentations.  We also include here two simple
+baselines for comparison.  ``PRA Only'' shows the result when just using PRA
+features in the model (i.e., assuming that there are no sentence mentions for
+any entity pair).  ``Interpolated'' is the result of a weighted
+interpolation between ``PRA Only'' and MultiR, showing that joint training
+between the PRA features and MultiR's dependency path features is crucial, as
+the interpolated result is quite poor.  TODO: actually add the interpolated
+result to the figure.
 
 \begin{figure}
   \centering
@@ -316,17 +328,21 @@ and not from interactions between PRA and dependency path features.
   \label{fig:our-comparison}
 \end{figure}
 
-Next, \figref{prior-work-comparison} shows a comparison between our best
-augmented model and prior work on aggregate extraction performance.  As can be
-seen from the figure, our method substantially outperforms all prior work,
-including models that just used dependency path features (MultiR and MIML-RE)
-and models that combined KB embeddings with dependency path features (WESTON).
-It appears that the embedding method vastly under-utilizes the knowledge base,
-as the same information is available to both Weston's method and ours.  We
-belive this is because much of the information contained in the knowledge base
-is not amenable to low-rank representations~\cite{nickel-2014-are}, and so our
-method that incorporates symbolic information from the KB can get much more
-leverage from that information.
+Next, \figref{prior-work-comparison} shows a comparison between the best
+PRA-augmented model (``PRA Per Mention'' in \figref{our-comparison}) and prior
+work on aggregate extraction performance.  As can be seen from the figure, our
+method substantially outperforms all prior work, including models that just
+used dependency path features (MultiR and MIML-RE) and models that combined KB
+embeddings with dependency path features (Weston).  It appears that the
+embedding method vastly under-utilizes the knowledge base, as the same
+information is available to both Weston's method and ours.  We belive this is
+because much of the information contained in the knowledge base is not amenable
+to low-rank representations~\cite{nickel-2014-are}, and so our method that
+incorporates symbolic information from the KB can get much more leverage from
+that information.  Weston's method also is a kind of interpolation between a KB
+embedding model and a sentence-level embedding model, which, judging by our
+interpolated result with PRA features, may explain their poor utilization of
+the KB.
 
 \begin{figure}
   \centering
@@ -337,7 +353,7 @@ leverage from that information.
       \addplot[blue] table [y=Precision, x=Recall]{data/weston.tsv};
       \addlegendentry{Weston}
       \addplot[cyan] table [y=Precision, x=Recall]{data/miml.tsv};
-      \addlegendentry{MIML}
+      \addlegendentry{MIML-RE}
       \addplot[red] table [y=Precision, x=Recall]{data/pra_frequent.tsv};
       \addlegendentry{Ours}
     \end{axis}
@@ -348,16 +364,20 @@ leverage from that information.
 \end{figure}
 
 Lastly, we present a comparison of sentential extraction performance between
-MultiR and our augmented version.  Because PRA features might mislead the model
-to predict a relation instance that is not actually expressed in a particular
-sentence, we also experimented with only using the PRA features at training
-time, removing them during testing.  \figref{sentential-comparison} shows the
-results of this comparison.  PRA-augmented MultiR performs slightly better here
-than MultiR, and, somewhat surprisingly, using PRA features only at training
-time performs substantially better still.  We believe this is because the
-presence of the PRA features at training time gives the model a stronger and
-better supervision signal, resulting in better learned weights for the
-dependency features.
+MultiR and our augmented version.  We note here that the PRA features we added
+are aggregate-level features, not sentence-level features.  A relation may be
+true in aggregate but not expressed by a particular sentence, and so it is
+possible that the PRA features could mislead the model when predicting at the
+sentence level.  Because the PRA features could be misleading at test time, we
+also experimented with only using the PRA features at training time, removing
+them during testing.  \figref{sentential-comparison} shows the results of this
+comparison.  PRA-augmented MultiR performs slightly worse than MultiR, while,
+somewhat surprisingly, using PRA features only at training time performs
+slightly better.  We believe this improvement is because the presence of the
+PRA features at training time gives the model a stronger and better supervision
+signal, nudging the model to learn more from entity pairs that are strongly
+associated with a relation than from those that are not, resulting in better
+learned weights for the dependency features.
 
 \begin{figure}
   \centering
